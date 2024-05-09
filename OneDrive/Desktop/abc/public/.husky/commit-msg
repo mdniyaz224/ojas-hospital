@@ -1,0 +1,35 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Get the commit message
+commit_msg=$(cat $1)
+
+# Get the git username from the root of the working directory
+cd $(git rev-parse --show-toplevel)
+git_username=$(git config user.name)
+
+# Define the regex pattern to match the commit message format
+commit_regex="^(build|ci|docs|feat|fix|perf|refactor|style|test)(\([a-z0-9& _-]+\))?:( [A-Z][a-zA-Z0-9,& _-]{20,70}) in ([A-Z0-9#-]+) by @$git_username(\n.*)?"
+
+
+# Check if the commit message matches the regex pattern
+echo "Commit message: $commit_msg"
+if [[ ! $commit_msg =~ $commit_regex ]]; then
+  if [[ ! $commit_msg =~ ^(build|ci|docs|feat|fix|perf|refactor|style|test) ]]; then
+    echo "Invalid commit message format: <type> is missing or not valid."
+  fi
+  if [[ ! $commit_msg =~ (\([a-z0-9]+\))? ]]; then
+    echo "Invalid commit message format: <scope> is not valid."
+  fi
+  if [[ ! $commit_msg =~ ( [A-Z][a-zA-Z0-9, _-]{20,50}) ]]; then
+    echo "Invalid commit message format: <message> should be between 20 to 50 characters and the first letter should be capital."
+  fi
+  if [[ ! $commit_msg =~ in\ ([A-Z0-9#-]+) ]]; then
+    echo "Invalid commit message format: <ticket-number> is missing or not valid."
+  fi
+  if [[ ! $commit_msg =~ by\ @$git_username ]]; then
+    echo "Invalid commit message format: <git-username> is missing or not valid."
+  fi
+  echo "The message should be in the format: <type>(<scope>): <message between 20 to 70 charaters and the first letter capital> in <ticket-number> by @$git_username with an optional commit message body of up to ~70 characters."
+  exit 1
+fi

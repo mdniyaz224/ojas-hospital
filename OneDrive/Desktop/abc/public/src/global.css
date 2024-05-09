@@ -1,0 +1,23 @@
+/* Remove if fonts are not used */
+@import '@fontsource/oswald/200.css';
+@import '@fontsource/oswald/300.css';
+@import '@fontsource/oswald/400.css';
+@import '@fontsource/oswald/500.css';
+@import '@fontsource/oswald/600.css';
+@import '@fontsource/oswald/700.css';
+@import '@fontsource/montserrat/200.css';
+@import '@fontsource/montserrat/300.css';
+@import '@fontsource/montserrat/400.css';
+@import '@fontsource/montserrat/100.css';
+@import '@fontsource/montserrat/500.css';
+@import '@fontsource/montserrat/600.css';
+@import '@fontsource/montserrat/700.css';
+@import '@fontsource/montserrat/800.css';
+@import '@fontsource/montserrat/900.css';
+
+/* Remove if simplebar is not used */
+@import '~simplebar-react/dist/simplebar.min.css';
+
+/* Remove if slick-carousel is not used */
+@import '~slick-carousel/slick/slick.css';
+@import '~slick-carousel/slick/slick-theme.css';

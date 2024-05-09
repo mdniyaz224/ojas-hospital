@@ -1,0 +1,169 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage('Pull Code') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('SonarQube Scan') {
+            when {
+                // Execute this stage only if changes are made to the develop branch
+                expression { env.BRANCH_NAME == 'develop' }
+            }
+            steps {
+                script {
+                    def scannerHome = tool 'jenkins-sonar'
+                    withSonarQubeEnv() {
+                        sh "${scannerHome}/opt/sonar-scanner/bin/sonar-scanner"
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy to develop Server') {
+            when {
+                // Execute this stage only if changes are made to the develop branch
+                expression { env.BRANCH_NAME == 'develop' }
+            }
+            steps {
+                script {
+                    def qualityGate = waitForQualityGate()
+                    if (qualityGate.status != 'OK') {
+                        error "Code did not meet quality gate criteria"
+                    }
+                }
+                sshagent(['lacrosse']) {
+                    sh '''ssh lacrosse@182.75.105.186 "cd /home/lacrosse && sh deploy-dev-website.sh"'''
+                }
+            }
+            post {
+                failure {
+                    emailext subject: "Dev Deployment Failed",
+                              body: """This is an automated notification regarding the recent deployment of lacrosse in the Dev environment.<br>
+                                    Unfortunately, the deployment encountered errors. Attached to this email are the deployment logs for your review.<br><br><br><br>
+                                    
+                                    
+                                    Best regards,<br>
+                                    DevOps Team <br>
+                                    Debut Infotech""",
+                              to: "lacrosse-frontend@debutinfotech.com",
+                              from: "Debut Infotech DevOps Team <devops@debutinfotech.com>",
+                              mimeType: 'text/html',
+                              attachLog: true
+                }
+                success {
+                    emailext subject: "Dev Deployment Successful",
+                              body: """This is an automated notification regarding the recent deployment of lacrosse in the Dev environment.<br>
+                                    The deployment process has completed successfully. The latest version of the application has been successfully deployed, and the system is now running as expected.<br><br><br><br>
+                                
+                                
+                                
+                                Best regards,<br>
+                                DevOps Team <br>
+                                Debut Infotech""",
+                              to: "lacrosse-frontend@debutinfotech.com",
+                              from: "Debut Infotech DevOps Team <devops@debutinfotech.com>",
+                              mimeType: 'text/html'
+                }
+            }
+        }
+        
+        stage('Deploy to QA Server') {
+            when {
+                // Execute this stage only if changes are made to the qa branch
+                expression { env.BRANCH_NAME == 'qa' }
+            }
+            steps {
+                sshagent(['lacrosse']) {
+                    script {
+                        def qaDeploymentStatus = sh(script: 'ssh lacrosse@182.75.105.186 "cd /home/lacrosse && sh deploy-qa-website.sh"', returnStatus: true)
+                        if (qaDeploymentStatus != 0) {
+                            emailext subject: "QA Deployment Failed",
+                                      body: """This is an automated notification regarding the recent deployment of lacrosse in the QA environment.<br>
+                                            Unfortunately, the deployment encountered errors. Attached to this email are the deployment logs for your review. <br><br><br><br>
+                                            
+                                            
+                                            Best regards,<br>
+                                            DevOps Team <br>
+                                            Debut Infotech""",
+                                      to: "lacrosse-frontend@debutinfotech.com",
+                                      from: "Debut Infotech DevOps Team <devops@debutinfotech.com>",
+                                      mimeType: 'text/html'
+                        } else {
+                            emailext subject: "QA Deployment Successful",
+                                      body: """This is an automated notification regarding the recent deployment of lacrosse in the QA environment. <br>
+                                      The deployment process has completed successfully. The latest version of the application has been successfully deployed, and the system is now running as expected.<br><br><br><br>
+                                      
+                                      
+                                      Best regards,<br>
+                                      DevOps Team<br>
+                                      Debut Infotech""",
+                                      to: "lacrosse-frontend@debutinfotech.com",
+                                      from: "Debut Infotech DevOps Team <devops@debutinfotech.com>",
+                                      mimeType: 'text/html'
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy to UAT Server') {
+            when {
+                // Execute this stage only if changes are made to the uat branch
+                expression { env.BRANCH_NAME == 'uat' }
+            }
+            steps {
+                sshagent(['ubuntu']) {
+                    script {
+                        def uatDeploymentStatus = sh(script: 'ssh -o StrictHostKeyChecking=no ubuntu@52.3.34.103 "cd /var/www && sh deploy-uat-website.sh"', returnStatus: true)
+                        if (uatDeploymentStatus != 0) {
+                            emailext subject: "UAT Deployment Failed",
+                                      body: """This is an automated notification regarding the recent deployment of lacrosse in the UAT environment.<br>
+                                      Unfortunately, the deployment encountered errors. Attached to this email are the deployment logs for your review.<br><br><br><br>
+                                      
+                                      
+                                      Best regards,<br>
+                                      DevOps Team <br>
+                                      Debut Infotech""",
+                                      to: "lacrosse-frontend@debutinfotech.com",
+                                      from: "Debut Infotech DevOps Team <devops@debutinfotech.com>",
+                                      mimeType: 'text/html'
+                        } else {
+                            emailext subject: "UAT Deployment Successful",
+                                      body: """This is an automated notification regarding the recent deployment of lacrosse in the UAT environment.<br>
+                                           The deployment process has completed successfully. The latest version of the application has been successfully deployed, and the system is now running as expected.<br><br><br><br>
+                                           
+                                           
+                                           Best regards, <br>
+                                           DevOps Team <br>
+                                           Debut Infotech""",
+                                      to: "lacrosse-frontend@debutinfotech.com",
+                                      from: "Debut Infotech DevOps Team <devops@debutinfotech.com>",
+                                      mimeType: 'text/html'
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        unstable {
+            emailext subject: "Quality Gate Not Passed",
+                      body: """After conducting a thorough review, we regret to inform you that the code did not meet the quality gate expectations outlined for our project.<br>
+                            We understand that meeting quality gate expectations can sometimes be challenging, especially when working under tight deadlines or facing complex requirements. <br>
+                            However, maintaining code quality is paramount to the success of our project and the satisfaction of our users.<br><br><br><br>
+                            
+                            
+                            Best regards,<br>
+                            DevOps Team<br>
+                            Debut Infotech""",
+                      to: "lacrosse-frontend@debutinfotech.com",
+                      from: "Debut Infotech DevOps Team <devops@debutinfotech.com> ",
+                      mimeType: 'text/html'
+        }
+    }
+}
